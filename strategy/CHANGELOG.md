@@ -269,3 +269,23 @@
   21 s, 3 turns. Detached launch verified. Swing bots (GOLD, BTCUSD) restarted with the hook. 83 tests pass.
 - Decision rule fixed now: do not judge before ~30 closed shadowed trades; compare follow_ai_R vs rule_R and
   avg R of "skip" vs "take".
+
+## 2026-11-25 18:45 — chart check + intraday technique suite (xau_agent/techniques.py): no technique passes
+- Data check: rendered the bot's own MT5 bars (M5/H1/H4) to images and read them; they show the move the bot
+  reported (H4 downtrend 4150 -> 3510, testing the 3502.63 low; M5 range 3515–3540 today). Independent source:
+  Kitco 18 Nov 3724.90 matches the H4 bars that day. The bot sees the real market.
+- Research (web): gold "rises in Asia, falls later" (Blose et al. 2018; CBS thesis) — academic support, but a
+  practitioner tick backtest found costs eat it; intraday momentum (Gao et al.) — mixed evidence for gold.
+- Suite, pre-declared in the module header (13 canonical techniques, no tuning; pass = n>=200, IS and OOS
+  avg R > 0, t >= 2). M5 2025-06..2026-11, ~368 trading days, real costs. One bug fixed before judging:
+  ASIA_LONG entered at a 01:00 close that rarely exists (XM opens 01:00) -> first bar close 01:05.
+  avg R after costs (n, trades/day, no-cost avg R):
+  RSI2 −0.129 (8338, 22.6/d, −0.005) | RSI14 −0.131 (2455, 6.7, −0.019) | BB20 −0.123 (5619, 15.3, −0.011) |
+  STOCH −0.109 (5676, 15.4, +0.013) | EMA9_21 −0.127 (3418, 9.3, −0.008) | MACD −0.139 (4731, 12.8, +0.007) |
+  DON20 −0.145 (5071, 13.8, −0.027) | ORB_LON −0.201 (359, 1.0, −0.026) | ORB_NY −0.143 (344, 0.9, −0.063) |
+  ASIA_BRK −0.103 (187, 0.5, +0.038) | ASIA_LONG +0.009 (362; IS +0.122, OOS −0.253; no-cost +0.129) |
+  DAY_SHORT +0.029 (362; IS −0.007, OOS +0.114; t 0.27; no-cost +0.096) | NY_MOM −0.039 (362, no-cost +0.005).
+- Reading: every indicator technique has ~0 R BEFORE costs (they do not predict 5–60 min moves on this data);
+  costs are ~0.12 R per trade, so the more trades, the larger the loss. Only the time-of-day legs show a pre-cost
+  tilt (+0.10–0.13 R) and it is unstable between halves. High-frequency trading on this account has no evidence
+  of edge; frequency multiplies costs, not profit.
