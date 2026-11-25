@@ -34,6 +34,9 @@ Start-Bot 'run'       'agent'        @('-u', '-m', 'xau_agent.main') @{}
 Start-Bot 'swing'     'swing'        @('-u', '-m', 'xau_agent.swing_bot') @{ MODE = 'demo' }
 Start-Bot 'swingbtc'  'swing_btcusd' @('-u', '-m', 'xau_agent.swing_bot') @{ MODE = 'demo'; SYMBOL = 'BTCUSD'; SWING_MAGIC = '260514'; SWING_MAX_SPREAD_POINTS = '10000' }
 Start-Bot 'dashboard' 'dashboard'    @('-u', '-m', 'xau_agent.dashboard', '--watch') @{}
+if ((Get-Command tailscale -ErrorAction SilentlyContinue) -or (Test-Path 'C:\Program Files\Tailscale\tailscale.exe')) {
+    Start-Bot 'webdash' 'webdash' @('-u', '-m', 'xau_agent.webdash') @{}   # dashboard over Tailscale only
+}
 Start-Sleep 20
 Get-ChildItem logs\*.err.log | Where-Object { $_.LastWriteTime -gt (Get-Date).AddMinutes(-1) -and $_.Length -gt 0 } |
     ForEach-Object { Write-Warning "$($_.Name):"; Get-Content $_.FullName -Tail 5 }

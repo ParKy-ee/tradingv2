@@ -65,3 +65,34 @@ git pull
 .venv\Scripts\pip install -r requirements.txt
 powershell -ExecutionPolicy Bypass -File scripts\start_all.ps1
 ```
+
+## 8. ทำงานจากที่ไหนก็ได้ผ่าน Tailscale (SSH + dashboard บนมือถือ)
+
+เครื่อง runtime ตอนนี้: **parky — 100.81.86.78** (Tailscale)
+
+1. ติดตั้ง Tailscale ทั้งเครื่อง runtime และเครื่องที่ใช้ทำงาน/มือถือ แล้ว login บัญชีเดียวกัน
+2. บนเครื่องที่ใช้ทำงาน สร้าง SSH key (ตั้ง passphrase ได้ตามต้องการ):
+   ```powershell
+   ssh-keygen -t ed25519
+   ```
+   คัดลอกไฟล์ `%USERPROFILE%\.ssh\id_ed25519.pub` (ไฟล์ **.pub** เท่านั้น ห้ามส่งไฟล์ที่ไม่มี .pub) ไปที่เครื่อง runtime
+3. บนเครื่อง runtime เปิด PowerShell แบบ **Run as administrator**:
+   ```powershell
+   cd D:\xau-agent
+   powershell -ExecutionPolicy Bypass -File scripts\runtime_setup.ps1 -PublicKeyFile C:\path\id_ed25519.pub
+   ```
+   เปิด OpenSSH Server, firewall รับ SSH/dashboard **เฉพาะจาก Tailscale (100.64.0.0/10)**, ปิด login ด้วยรหัสผ่าน,
+   สร้าง task `xau-start` (เริ่มบอทเองตอน login) และ `xau-stop`
+4. ทดสอบจากเครื่องที่ใช้ทำงาน: `ssh <ชื่อผู้ใช้ Windows>@100.81.86.78`
+5. Claude desktop app: เพิ่ม SSH connection ไปที่ `100.81.86.78` แล้วเปิด session ที่โฟลเดอร์ `D:\xau-agent`
+   เพื่อให้ Claude แก้โค้ด ดู log และรัน test บนเครื่อง runtime ได้โดยตรง
+
+**สั่งบอทผ่าน SSH:** ใช้ task เพื่อให้บอทรันในหน้าจอ desktop (MT5 ต้องอยู่ใน session เดียวกัน)
+```powershell
+schtasks /run /tn xau-stop
+schtasks /run /tn xau-start
+```
+**Dashboard จากมือถือ:** เปิด `http://100.81.86.78:8765/` (มือถือต้องเปิด Tailscale) — ส่งเฉพาะไฟล์ dashboard
+ไม่มีทางเข้าถึง `.env` หรือไฟล์อื่น และฟังเฉพาะ IP ของ Tailscale
+
+ข้อควรรู้: เครื่อง runtime ต้อง login Windows ค้างไว้ (MT5 ต้องมีหน้าจอ desktop) — ใช้ awake กันจอดับ/standby

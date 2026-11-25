@@ -3,7 +3,7 @@
 # Open positions keep their broker-side stop loss; nothing is closed by stopping the bots.
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
-foreach ($name in 'agent', 'swing', 'swing_btcusd', 'dashboard', 'awake') {
+foreach ($name in 'agent', 'swing', 'swing_btcusd', 'dashboard', 'webdash', 'awake') {
     $f = "logs\$name.pid"
     if (-not (Test-Path $f)) { continue }
     $id = Get-Content $f | Select-Object -First 1
