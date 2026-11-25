@@ -234,3 +234,13 @@
   instance cannot collide with GOLD; GOLD keeps its original ids. Report sizes risk from the symbol spec.
 - Started BTCUSD swing bot on DEMO: SYMBOL=BTCUSD SWING_MAGIC=260514 SWING_MAX_SPREAD_POINTS=10000
   (pid logs/swing_btcusd.pid), risk 1%/trade, max 0.05 lot. Dashboard shows a BTCUSD swing panel.
+
+## 2026-11-25 17:05 — how much evidence do the swing results carry? (correction)
+- R per trade is very dispersed (sd 2.0R GOLD, 3.8R BTCUSD). GOLD H4 DON20_10: mean +0.130R over 603 trades,
+  t = 1.59 — NOT statistically significant on its own (needs ~950 trades for t=2). Earlier wording "edge" was too
+  strong: it is weak evidence, supported by consistency (12/14 years) and beating the baseline. BTCUSD: t = 2.78
+  over 527 trades, but chosen among 15 symbols, so discount it.
+- Expected forward-test noise: 1-year windows (45 trades) were negative 33% (GOLD) / 26% (BTC) of the time in the
+  backtest; worst 1-year −15R / −18R; longest losing streaks 12 / 14 trades. A losing first year is NOT evidence
+  against the rule. Forward test purpose = verify execution matches the backtest (fills, spread, slippage, missed
+  signals), not to prove edge.
