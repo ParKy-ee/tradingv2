@@ -299,3 +299,14 @@
 - Dashboard: "Swing H4 + Shadow AI" panel — each swing trade (symbol, side, entry/SL, open or net result) next to
   the AI verdict/confidence/reason, plus the list of missed signals. Verified with sample rows on a copy.
 - 84 tests pass. Swing bots and dashboard restarted.
+
+## 2026-11-25 17:40 — news-reaction continuation (techniques.py NEWS*): FAIL; reversal noted as a NEW hypothesis
+- Pre-declared: after US releases at 08:30 / 10:00 / 14:00 NY, if the first 15 min move > 1.5x ATR14, trade WITH
+  it, stop 3.5x ATR, exit after 2 h (also 4 h for 08:30). Pass needs n>=60, IS & OOS > 0, t>=2.
+- Results (avg R after costs, n, IS / OOS, t, no-cost):
+  NEWS0830_2H −0.134 (141; −0.022 / −0.325; −1.36; −0.105) | NEWS0830_4H −0.075 (141; +0.036 / −0.263; −0.61; −0.046)
+  NEWS1000_2H −0.089 (83; −0.107 / −0.031; −1.14; −0.058) | NEWS1400_2H −0.290 (47; −0.543 / +0.053; −2.56; −0.259)
+- Continuation is rejected. Every variant is negative even before costs, i.e. first news moves in gold tended to
+  partly REVERSE over the next hours, most at 14:00 NY (Fed statements/minutes). That is a hypothesis formed after
+  seeing the data (snooping), so it is NOT adopted. To test it fairly it needs new data: record each live news
+  reaction from now on and check the fade only on events after 2026-11-25.

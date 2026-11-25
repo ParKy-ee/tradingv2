@@ -27,6 +27,15 @@ Techniques (exits fixed per family):
     DAY_SHORT sell 10:00, exit 22:00
   Intraday momentum (Gao et al. 2018, first half hour predicts the last):
     NY_MOM    at 17:00 trade the sign of the 16:30-17:00 move, exit 22:30; stop 3.5x ATR14
+  News reaction (declared 2026-11-25 17:25 Thai, before running; added after the suite above had failed):
+    Scheduled US releases happen at 08:30, 10:00 and 14:00 New York time = 15:30, 17:00, 21:00 server.
+    Event = the 15 minutes after the release move more than 1.5x ATR14 (ATR measured on the bar before the
+    release). Trade WITH that first move at the 15-minute close ("does the news move continue?"), stop 3.5x ATR14,
+    exit by time. No actual-vs-forecast data is needed; the market's first reaction is the signal.
+    NEWS0830_2H / NEWS0830_4H   decide 15:45, exit 17:45 / 19:45
+    NEWS1000_2H                 decide 17:15, exit 19:15
+    NEWS1400_2H                 decide 21:15, exit 23:15
+    PASS for NEWS tests: n >= 60 (events are rarer); the other conditions as below.
 
 PASS (all required): n >= 200; avg R after costs > 0 in-sample (first 70% of time) AND out-of-sample (last 30%);
 t-stat of R >= 2 on the full sample. ~14 tests: at t >= 2 roughly one false pass is possible by luck.
@@ -247,6 +256,21 @@ def s_ny_mom(c, i, st_):
     return None
 
 
+def news_reaction(release: int, k: float = 1.5) -> Signal:
+    """release = server minute of the release; decide 15 minutes later on the first move vs ATR before release."""
+    def f(c: Ctx, i: int, st_: dict) -> str | None:
+        t = mins(c, i)
+        if t == release:
+            st_["px"], st_["atr"], st_["day"] = c.c[i], c.atr[i], c.day[i]
+        elif t == release + 15 and st_.get("day") == c.day[i] and st_.get("atr"):
+            move = c.c[i] - st_["px"]
+            st_.clear()
+            if abs(move) >= k * c.atr[i - 3]:  # ATR of the bar that closed at the release time
+                return "buy" if move > 0 else "sell"
+        return None
+    return f
+
+
 # name: (signal, stop_atr, target_atr or None, max_hold_bars or None, exit_at_server_minute or None)
 TECHNIQUES: dict[str, tuple] = {
     "RSI2": (s_rsi2, 1.5, 1.0, 12, None),
@@ -262,6 +286,10 @@ TECHNIQUES: dict[str, tuple] = {
     "ASIA_LONG": (at_time(65, "buy"), 3.5, None, None, 10 * 60),
     "DAY_SHORT": (at_time(10 * 60, "sell"), 3.5, None, None, 22 * 60),
     "NY_MOM": (s_ny_mom, 3.5, None, None, 22 * 60 + 30),
+    "NEWS0830_2H": (news_reaction(15 * 60 + 30), 3.5, None, None, 17 * 60 + 45),
+    "NEWS0830_4H": (news_reaction(15 * 60 + 30), 3.5, None, None, 19 * 60 + 45),
+    "NEWS1000_2H": (news_reaction(17 * 60), 3.5, None, None, 19 * 60 + 15),
+    "NEWS1400_2H": (news_reaction(21 * 60), 3.5, None, None, 23 * 60 + 15),
 }
 
 
@@ -341,7 +369,7 @@ def main() -> None:
             continue
         is_, oos = summary([t for t in tr if t["t"] < split]), summary([t for t in tr if t["t"] >= split])
         nc = summary(run(ctx, name, costs=False))
-        ok = s["n"] >= 200 and is_.get("avg_r", -1) > 0 and oos.get("avg_r", -1) > 0 and s["t"] >= 2
+        ok = s["n"] >= (60 if name.startswith("NEWS") else 200) and is_.get("avg_r", -1) > 0 and oos.get("avg_r", -1) > 0 and s["t"] >= 2
         if ok:
             passed.append(name)
         out[name] = {"all": s, "is": is_, "oos": oos, "no_cost": nc, "pass": ok}
