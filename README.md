@@ -176,6 +176,10 @@ python -m xau_agent.dashboard --watch    # เขียน dashboard.html ให
 python -m xau_agent.awake      # หยุด: kill pid ใน logs/awake.pid
 ```
 
+## ติดตั้งบนเครื่องรันจริง
+
+ดู [docs/DEPLOY.md](docs/DEPLOY.md) — ติดตั้ง, ย้าย `.env`/journal, และ `scripts/start_all.ps1` / `scripts/stop_all.ps1`
+
 ## ลำดับที่แนะนำ
 
 1. `--check` บนบัญชี demo → ตรวจชื่อ symbol, spread จริง, tick value
