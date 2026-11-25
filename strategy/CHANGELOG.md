@@ -289,3 +289,13 @@
   costs are ~0.12 R per trade, so the more trades, the larger the loss. Only the time-of-day legs show a pre-cost
   tilt (+0.10–0.13 R) and it is unstable between halves. High-frequency trading on this account has no evidence
   of edge; frequency multiplies costs, not profit.
+
+## 2026-11-25 19:10 — focus: H4 swing + AI (user decision); forward-test bookkeeping
+- Direction chosen by the user: H4 swing bots (GOLD, BTCUSD) on demo + shadow AI; M5 agent stays advisory.
+- swing_bot: records the last H4 bar seen online (logs/seen_<component>.txt). After a restart or PC sleep, entry
+  signals on bars that closed while offline are logged as event `swing_missed` (+ notify), so forward results
+  can be compared with the backtest honestly (missed trades are not silently dropped). Checked: no signal fired
+  on either symbol since the bots started (incl. today's 11:26–15:39 sleep).
+- Dashboard: "Swing H4 + Shadow AI" panel — each swing trade (symbol, side, entry/SL, open or net result) next to
+  the AI verdict/confidence/reason, plus the list of missed signals. Verified with sample rows on a copy.
+- 84 tests pass. Swing bots and dashboard restarted.

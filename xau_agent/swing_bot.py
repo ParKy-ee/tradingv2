@@ -90,6 +90,34 @@ class SwingBot:
         sym = getattr(broker, "symbol", "GOLD")
         self.prefix = "swing-" if sym in ("GOLD", None) else f"swing-{sym}-"
         self.component = "swing" if sym in ("GOLD", None) else f"swing_{sym.lower()}"
+        self.seen_path = None  # file with the last H4 bar seen online (set in main); used to log missed signals
+
+    def _scan_missed(self, completed: list[dict], pos) -> None:
+        """Log entry signals on bars that closed while the bot was offline (PC asleep/off), except the latest bar,
+        which the normal path handles (enter or skip_stale). Keeps the forward test honest about gaps."""
+        if not self.seen_path:
+            return
+        last = completed[-1]["time"]
+        try:
+            seen = int(self.seen_path.read_text().strip()) if self.seen_path.exists() else 0
+        except (OSError, ValueError):
+            seen = 0
+        if last == seen:
+            return
+        if seen and not pos:
+            for k in range(ENTRY_N + 1, len(completed) - 1):
+                t = completed[k]["time"]
+                if t <= seen:
+                    continue
+                s = signal(completed[:k + 1], None)
+                if s["entry"]:
+                    self.j.event("swing_missed", {"bar_time": t, "side": s["entry"], "close": completed[k]["close"],
+                                                  "symbol": getattr(self.b, "symbol", "GOLD")}, f"{self.prefix}{t}")
+                    self.n.send(f"[SWING {self.mode}] missed {s['entry']} signal at bar {t} (bot was offline)")
+        try:
+            self.seen_path.write_text(str(last))
+        except OSError:
+            pass
 
     def _own_position(self):
         return next((p for p in self.b.positions() if p.magic == self.b.magic), None)
@@ -126,6 +154,7 @@ class SwingBot:
             return None
         bar_time = completed[-1]["time"]
         pos = self._own_position()
+        self._scan_missed(completed, pos)
         if bar_time == self.done_bar and not pos:
             return None
         sig = signal(completed, pos.side if pos else None, self._entry_bar_time(pos.ticket) if pos else None)
@@ -234,6 +263,8 @@ def main() -> None:
     if a.check:
         return
     bot.publish = True
+    from .status import ROOT
+    bot.seen_path = ROOT / "logs" / f"seen_{bot.component}.txt"
     from .shadow import launch
     bot.shadow = launch  # logged opinion only; never changes the trade
     print(f"keep PC awake while running: {keep_awake()}")

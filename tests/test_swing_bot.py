@@ -88,6 +88,29 @@ class BotStepTests(unittest.TestCase):
         self.assertEqual((side, tp), ("buy", 0.0))
         self.assertLess(sl, 2650.2)
 
+    def test_logs_signal_missed_while_offline(self):
+        import tempfile
+        from pathlib import Path
+        b = FakeBroker()
+        b.magic = 260513
+        # breakout at bar 25 (closed while "offline"), then three quiet bars; bars 28 completed, 29 forming
+        closes = [2650.0] * 25 + [2660.0, 2660.0, 2660.0, 2660.0, 2660.0]
+        bars = mk(closes)
+        b.bars = lambda tf, n: [dict(x, tick_volume=1) for x in bars]
+        b._q.server_epoch = bars[-1]["time"] + 60
+        j = Journal(":memory:")
+        bot = SwingBot(b, j, Notifier(), "demo", "nonexistent-STOP", 0.5, 0.05, 150, 30)
+        with tempfile.TemporaryDirectory() as d:
+            bot.seen_path = Path(d) / "seen.txt"
+            bot.seen_path.write_text(str(bars[24]["time"]))  # last bar seen online
+            bot.step()
+            rows = j.db.execute("SELECT payload FROM events WHERE kind = 'swing_missed'").fetchall()
+            self.assertEqual(len(rows), 1)
+            self.assertIn('"side": "buy"', rows[0]["payload"])
+            self.assertEqual(bot.seen_path.read_text(), str(bars[-2]["time"]))
+            bot.step()  # same bar again: nothing new
+            self.assertEqual(j.db.execute("SELECT COUNT(*) FROM events WHERE kind='swing_missed'").fetchone()[0], 1)
+
     def test_second_symbol_has_its_own_ids_and_does_not_see_gold_orders(self):
         j = Journal(":memory:")
         gold, btc = FakeBroker(), FakeBroker()

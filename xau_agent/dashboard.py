@@ -121,7 +121,18 @@ def collect(broker=None, n_cycles: int = 40) -> dict[str, Any]:
             (int(now.timestamp()) - 3 * 3600, int((now + timedelta(hours=48)).timestamp())))]
     except sqlite3.OperationalError:
         upcoming = []
+    forward = [dict(r) for r in db.execute(
+        "SELECT ts, cycle_id, side, price, entry_ref, sl, lot, ticket, ok FROM orders "
+        "WHERE cycle_id LIKE 'swing-%' AND sent = 1 ORDER BY ts DESC LIMIT 30")]
+    shadow = {r["cycle_id"]: _payload(r["payload"]) for r in db.execute(
+        "SELECT cycle_id, payload FROM events WHERE kind = 'shadow_review' ORDER BY id")}
+    for f in forward:
+        f["symbol"] = "GOLD" if len(f["cycle_id"].split("-")) == 2 else f["cycle_id"].split("-")[1]
+        f["ai"] = shadow.get(f["cycle_id"])
+    missed = [{"ts": r["ts"], "payload": _payload(r["payload"])} for r in db.execute(
+        "SELECT ts, payload FROM events WHERE kind IN ('swing_missed') ORDER BY id DESC LIMIT 20")]
     data: dict[str, Any] = {
+        "forward": forward, "missed": missed,
         "generated_utc": now.isoformat(), "processes": {"m5_agent": _alive("agent.pid"), "swing_bot": _alive("swing.pid"),
                                                      "swing_btc": _alive("swing_btcusd.pid")},
         "stop_file": (ROOT / "STOP").exists(), "cycles": cycles, "orders": orders, "events": events,
@@ -154,6 +165,13 @@ def collect(broker=None, n_cycles: int = 40) -> dict[str, Any]:
             h4 = broker.bars("H4", 80)[:-1]
             sw_pos = next((p for p in data["positions"] if p["magic"] == broker.magic + 1), None)
             sig = signal(h4, sw_pos["side"] if sw_pos else None)
+            for f in data["forward"]:
+                if f["ok"] and f["ticket"]:
+                    try:
+                        d = broker.deal_history(int(f["ticket"])) or {}
+                        f["closed"], f["net"] = d.get("closed"), d.get("net_profit")
+                    except Exception:
+                        pass
             data["swing"] = {"position": sw_pos, "signal": sig,
                              "bar_time": datetime.fromtimestamp(sig["bar_time"], tz=timezone.utc).strftime("%m-%d %H:%M")}
         except Exception as exc:  # dashboard must never crash the watcher
@@ -259,6 +277,9 @@ details summary{cursor:pointer;color:var(--muted)}label{font-size:13px}
 <section><h2>สรุปรอบล่าสุด (ทุก 30 วินาที)</h2><div class="pipe" id="pipe"></div></section>
 <section class="grid"><div class="card"><h2>รอบการตัดสินใจ (M5)</h2><div class="tl" id="tl"></div></div>
 <div class="card"><h2 id="dtitle">รายละเอียด</h2><div id="detail" class="muted">เลือกรอบทางซ้าย</div></div></section>
+<section class="card" style="margin-bottom:16px"><h2>Swing H4 (ทดสอบจริงบน demo) + ความเห็น Shadow AI</h2>
+<div class="muted" style="margin-bottom:6px">AI ให้ความเห็นทุกไม้แต่ไม่มีผลกับไม้จริง ใช้เทียบทีหลังว่าถ้าทำตาม AI จะดีกว่ากฎไหม (ตัดสินหลังครบ ~30 ไม้)</div>
+<div id="fwd"></div><div id="missed" style="margin-top:8px"></div></section>
 <section class="cols">
 <div class="card"><h2>ไม้เปิด / คำสั่งรอ</h2><div id="pos"></div></div>
 <div class="card"><h2>ผลแยกตาม setup</h2><pre id="stats"></pre></div>
@@ -317,6 +338,9 @@ $('pos').innerHTML=P.length?`<table><tr><th>บอท</th><th>ประเภท
 $('stats').textContent=D.stats||'ไม่มีข้อมูล';
 $('news').innerHTML=(D.news||[]).length?'<table>'+D.news.map(e=>`<tr><td>${th(e.event_epoch*1000)}</td><td class="${e.impact==='High'?'warn':''}">${esc(e.impact)}</td><td>${esc(e.title)}<br><span class="muted">คาด ${esc(e.forecast||'-')} · ก่อนหน้า ${esc(e.previous||'-')}</span></td></tr>`).join('')+'</table>':'<span class="muted">ไม่มี</span>';
 $('orders').innerHTML='<table><tr><th>เวลา</th><th>คำสั่ง</th><th>ราคา</th><th>ผล</th></tr>'+(D.orders||[]).slice(0,15).map(o=>`<tr><td>${th(o.ts)}</td><td>${esc(o.order_type||'market')} ${esc(o.side)}${String(o.cycle_id).startsWith('swing')?' <span class="pill">swing</span>':''}</td><td>${esc(o.price??o.entry_ref)}</td><td>${o.approved?(o.ok?'<span class="ok">ส่งแล้ว</span>':'<span class="idle">ไม่ได้ส่ง</span>'):'<span class="warn">ปฏิเสธ</span> <span class="muted">'+esc((o.reasons||'').slice(0,70))+'</span>'}</td></tr>`).join('')+'</table>';
+const V={take:'<span class="ok">เข้า</span>',half:'<span class="warn">ครึ่งเดียว</span>',skip:'<span class="bad">งด</span>'};
+$('fwd').innerHTML=(D.forward||[]).length?'<table><tr><th>เวลา</th><th>Symbol</th><th>ไม้</th><th>ราคาเข้า / SL</th><th>ผล</th><th>AI</th><th>เหตุผล AI</th></tr>'+(D.forward||[]).map(f=>`<tr><td>${th(f.ts)}</td><td>${esc(f.symbol)}</td><td>${esc(f.side)} ${esc(f.lot)}</td><td>${esc(f.price??f.entry_ref)} / ${esc(f.sl)}</td><td>${!f.ok?'<span class="bad">ส่งไม่สำเร็จ</span>':f.closed?`<b class="${f.net>=0?'ok':'bad'}">${(+f.net).toFixed(2)}</b>`:'<span class="idle">ถืออยู่</span>'}</td><td>${f.ai?(f.ai.verdict?V[f.ai.verdict]+' '+esc(f.ai.confidence)+'%':'<span class="bad">error</span>'):'<span class="muted">รอ</span>'}</td><td class="muted">${esc(((f.ai&&(f.ai.reason||f.ai.error))||'').slice(0,220))}</td></tr>`).join('')+'</table>':'<span class="muted">ยังไม่มีไม้ swing</span>';
+$('missed').innerHTML=(D.missed||[]).length?'<b class="warn">สัญญาณที่พลาดเพราะเครื่องปิด/หลับ:</b> '+D.missed.map(m=>`${esc(m.payload.symbol)} ${esc(m.payload.side)} @ ${esc(m.payload.close)} <span class="muted">(${th(m.ts)})</span>`).join(' · '):'<span class="muted">ไม่มีสัญญาณที่พลาด</span>';
 const evT={order_review:'Opus',pending_cancelled:'ยกเลิก pending',news_fetch:'ดึงข่าว',swing:'Swing'};
 $('events').innerHTML='<table>'+(D.events||[]).map(e=>{const p=e.payload;let s=typeof p==='object'?(p.verdict?(p.verdict+' · '+(p.reason||'')):p.reason?(p.reason+' ticket '+(p.ticket||'')):p.action?(p.action+(p.entry?' '+p.entry:'')):JSON.stringify(p)):p;
 return `<tr><td>${th(e.ts)}</td><td class="${/error/.test(e.kind)?'bad':''}">${evT[e.kind]||e.kind}</td><td>${esc(String(s).slice(0,220))}</td></tr>`}).join('')+'</table>';
