@@ -77,9 +77,13 @@ class BotStepTests(unittest.TestCase):
         b._q.server_epoch = mk(closes)[-1]["time"] + 60  # one minute after the bar closed
         j = Journal(":memory:")
         bot = SwingBot(b, j, Notifier(), "demo", "nonexistent-STOP", 0.5, 0.05, 150, 30)
+        shadows = []
+        bot.shadow = lambda cid, sym: shadows.append(cid)
         bot.step()
         bot.step()
         self.assertEqual(len(sent), 1)
+        self.assertEqual(len(shadows), 1)
+        self.assertTrue(shadows[0].startswith("swing-"))
         side, lot, sl, tp = sent[0]
         self.assertEqual((side, tp), ("buy", 0.0))
         self.assertLess(sl, 2650.2)

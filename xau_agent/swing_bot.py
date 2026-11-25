@@ -85,6 +85,7 @@ class SwingBot:
         self.done_bar = 0  # last bar whose signal was fully handled
         self.publish = False  # live stage status for the dashboard (set in main)
         self._last_pub = None
+        self.shadow = None  # callable(cycle_id, symbol): shadow AI review after an entry (set in main)
         # GOLD keeps the original ids ("swing-<bar>", status "swing"); other symbols get their own namespace
         sym = getattr(broker, "symbol", "GOLD")
         self.prefix = "swing-" if sym in ("GOLD", None) else f"swing-{sym}-"
@@ -183,6 +184,8 @@ class SwingBot:
         self.n.send(f"[SWING {self.mode}] {side} {lot} @ {r.price} SL {sl} ok={r.ok} ret={r.retcode}")
         if r.ok:
             self.done_bar = bar_time
+            if self.shadow:
+                self.shadow(f"{self.prefix}{bar_time}", getattr(self.b, "symbol", "GOLD"))
         return sig
 
 
@@ -231,6 +234,8 @@ def main() -> None:
     if a.check:
         return
     bot.publish = True
+    from .shadow import launch
+    bot.shadow = launch  # logged opinion only; never changes the trade
     print(f"keep PC awake while running: {keep_awake()}")
     while True:
         try:

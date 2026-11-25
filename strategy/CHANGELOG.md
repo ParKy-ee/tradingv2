@@ -256,3 +256,16 @@
   as M5/H1 earlier: the shorter the horizon, the smaller the edge relative to costs and noise.
 - For transparency, H4 against the stricter H1 bar: GOLD t 1.67 (fails t>=2), BTCUSD last 30% +0.012 (barely
   positive). Both stay as forward-test candidates under the original H4 criteria, with weak evidence.
+
+## 2026-11-25 17:55 — shadow AI review of swing trades (logged only)
+- xau_agent/shadow.py: after every swing entry the bot launches a detached `python -m xau_agent.shadow --cycle
+  <id>`; Opus gets the trade, D1/H4 bars + trend, the high/medium-impact calendar (−24 h..+72 h) and may run up
+  to 4 WebSearches; it answers take / half / skip + confidence, drivers, risks. Stored as event `shadow_review`
+  and logs/shadow/<cycle>.json (full prompt + answer). The trade is never changed: the forward test must
+  measure the rule, and the AI earns a vote only if `--report` shows "follow AI" R clearly above rule R.
+- Sandbox for web text: Claude runs with --restricted --strict-mcp-config --tools WebSearch, cwd = empty folder,
+  no API key (plan billing). It cannot read files (.env), run commands or fetch pages.
+- Verified: dry review of GOLD sell -> "take", confidence 55, flagged today's US PCE 13:30 UTC as the main risk;
+  21 s, 3 turns. Detached launch verified. Swing bots (GOLD, BTCUSD) restarted with the hook. 83 tests pass.
+- Decision rule fixed now: do not judge before ~30 closed shadowed trades; compare follow_ai_R vs rule_R and
+  avg R of "skip" vs "take".

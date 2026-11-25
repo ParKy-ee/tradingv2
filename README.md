@@ -146,6 +146,17 @@ python -m xau_agent.swing_bot
 swing bot ทำตามกฎเดียวกับ backtest เป๊ะ (ไม่มี LLM veto เพื่อให้วัดผลเทียบได้): stop ที่โบรก 2x ATR20,
 ไม่มี TP, ออกเมื่อปิดหลุด channel 10 แท่ง ไฟล์ `STOP` กันการเข้าไม้ใหม่ (การออกและ stop ยังทำงาน)
 
+## Shadow AI (ความเห็น AI ต่อไม้ swing, บันทึกอย่างเดียว)
+
+ทุกครั้งที่ swing bot เข้าไม้ ระบบจะให้ Opus อ่านกราฟ D1/H4 ปฏิทินข่าว และค้นข่าวล่าสุด (WebSearch เท่านั้น
+อ่านไฟล์หรือรันคำสั่งไม่ได้) แล้วบันทึกว่า "เข้า / ครึ่งเดียว / งด" **ไม่มีผลกับไม้จริง** ไว้เทียบทีหลังว่า AI ช่วยได้ไหม
+
+```
+python -m xau_agent.shadow --dry GOLD buy   # ลองถามความเห็นตอนนี้
+python -m xau_agent.shadow --report         # ผลไม้จริงแยกตามความเห็น AI
+```
+ปิดได้ด้วย `SHADOW_REVIEW=false`, เปลี่ยนโมเดลด้วย `SHADOW_MODEL`
+
 ## Dashboard (ไฟล์ .html)
 
 ```
