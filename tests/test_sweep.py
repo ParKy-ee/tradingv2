@@ -17,7 +17,7 @@ class SweepTests(unittest.TestCase):
     def setUp(self):
         self.b = FakeBroker()
         self.j = Journal(":memory:")
-        ex = ToolExecutor(self.b, RiskEngine(RiskConfig(max_lot=0.05, max_risk_per_trade_pct=1.0,
+        ex = ToolExecutor(self.b, RiskEngine(RiskConfig(news_auto=False, max_lot=0.05, max_risk_per_trade_pct=1.0,
                                                         block_against_htf=False)),
                           self.j, Notifier(), "demo", 260512, "", "s1")
         out = json.loads(ex.execute("propose_pending_order", SELL_LIMIT)[0])

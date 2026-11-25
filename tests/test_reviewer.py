@@ -27,7 +27,7 @@ class ReviewerTests(unittest.TestCase):
     def make(self, reviewer):
         self.broker = FakeBroker()
         self.journal = Journal(":memory:")
-        return ToolExecutor(self.broker, RiskEngine(RiskConfig(max_lot=0.05, max_risk_per_trade_pct=1.0)),
+        return ToolExecutor(self.broker, RiskEngine(RiskConfig(news_auto=False, max_lot=0.05, max_risk_per_trade_pct=1.0)),
                             self.journal, Notifier(), "demo", 260512, "", "r1", reviewer=reviewer)
 
     def test_parse_verdict(self):

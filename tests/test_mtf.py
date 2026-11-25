@@ -54,7 +54,7 @@ class HtfGateTests(unittest.TestCase):
         self.assertTrue(RiskEngine(cfg(block_against_htf=False)).check(sell, ctx(htf_bias="up")).approved)
 
     def test_tool_path_uses_live_bias(self):
-        ex = ToolExecutor(FakeBroker(), RiskEngine(RiskConfig(max_lot=0.05, max_risk_per_trade_pct=1.0)),
+        ex = ToolExecutor(FakeBroker(), RiskEngine(RiskConfig(news_auto=False, max_lot=0.05, max_risk_per_trade_pct=1.0)),
                           Journal(":memory:"), Notifier(), "demo", 260512, "", "h1")
         out = json.loads(ex.execute("propose_order", {"side": "sell", "lot": 0.01, "sl": 2652.2, "tp": 2647.0,
                                                       "reason": "fade"})[0])
@@ -66,7 +66,7 @@ class TradesTodayTests(unittest.TestCase):
     def test_unfilled_pending_and_manual_do_not_count(self):
         broker = FakeBroker()
         j = Journal(":memory:")
-        ex = ToolExecutor(broker, RiskEngine(RiskConfig(max_lot=0.05, max_risk_per_trade_pct=1.0)),
+        ex = ToolExecutor(broker, RiskEngine(RiskConfig(news_auto=False, max_lot=0.05, max_risk_per_trade_pct=1.0)),
                           j, Notifier(), "demo", 260512, "", "t1")
         ex.execute("propose_pending_order", {"order_type": "buy_stop", "price": 2651.0, "lot": 0.01, "sl": 2649.0,
                                              "tp": 2653.0, "expiry_minutes": 30, "reason": "b"})

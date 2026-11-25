@@ -65,7 +65,8 @@ class ClaudeCodeBackendTests(unittest.TestCase):
     def test_cli_propose_goes_through_risk_and_one_per_cycle(self):
         broker = FakeBroker()
         env = {"MODE": "demo", "JOURNAL_DB": str(self.dir / "j.sqlite"), "LOG_DIR": str(self.dir / "logs"),
-               "XAU_CYCLE_ID": "cc3", "TRADING_HOURS_UTC": "", "KILL_SWITCH_FILE": str(self.dir / "STOP"), "MAX_SPREAD_POINTS": "70", "MAX_LOT": "0.05"}
+               "XAU_CYCLE_ID": "cc3", "TRADING_HOURS_UTC": "", "KILL_SWITCH_FILE": str(self.dir / "STOP"), "MAX_SPREAD_POINTS": "70", "MAX_LOT": "0.05",
+               "NEWS_AUTO": "false", "ORDER_REVIEW_MODEL": ""}
         args = ["propose", "--side", "buy", "--lot", "0.01", "--sl", "2648.20", "--tp", "2652.20", "--reason", "t"]
         with mock.patch.dict(os.environ, env), mock.patch.object(cli, "MT5Broker", return_value=broker), \
                 mock.patch("dotenv.load_dotenv"):

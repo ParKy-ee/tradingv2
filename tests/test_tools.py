@@ -8,7 +8,7 @@ from xau_agent.risk import RiskEngine
 from xau_agent.tools import ToolExecutor
 from tests.fakes import FakeBroker
 
-RISK = RiskConfig(max_lot=0.05, max_risk_per_trade_pct=1.0, min_sl_points=50, max_sl_points=600)
+RISK = RiskConfig(news_auto=False, max_lot=0.05, max_risk_per_trade_pct=1.0, min_sl_points=50, max_sl_points=600)
 ORDER = {"side": "buy", "lot": 0.01, "sl": 2648.20, "tp": 2652.20, "reason": "test"}
 
 

@@ -44,7 +44,7 @@ class LoggingFlowTests(unittest.TestCase):
 
     def test_cycle_is_logged_labeled_and_exported(self):
         broker = FakeBroker()
-        ex = ToolExecutor(broker, RiskEngine(RiskConfig(max_lot=0.05, max_risk_per_trade_pct=1.0)),
+        ex = ToolExecutor(broker, RiskEngine(RiskConfig(news_auto=False, max_lot=0.05, max_risk_per_trade_pct=1.0)),
                           self.journal, Notifier(), "advisory", 260512, "", "c1")
         client = FakeClient([
             resp("tool_use", NS(type="tool_use", id="t1", name="get_market_snapshot", input={})),
@@ -91,7 +91,7 @@ class LoggingFlowTests(unittest.TestCase):
 
     def test_no_trade_cycle(self):
         broker = FakeBroker()
-        ex = ToolExecutor(broker, RiskEngine(RiskConfig()), self.journal, Notifier(), "advisory", 1, "", "c2")
+        ex = ToolExecutor(broker, RiskEngine(RiskConfig(news_auto=False)), self.journal, Notifier(), "advisory", 1, "", "c2")
         client = FakeClient([resp("end_turn", NS(type="text", text="NO TRADE"))])
         run_cycle(client, ex, self.journal, model="m", effort="low", fallbacks="off", trigger="t")
         self.assertNotIn("fallbacks", client.calls[0])

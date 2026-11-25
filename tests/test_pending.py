@@ -47,7 +47,7 @@ class PendingToolTests(unittest.TestCase):
     def make(self, mode="demo"):
         self.broker = FakeBroker()
         self.journal = Journal(":memory:")
-        risk = RiskEngine(RiskConfig(max_lot=0.05, max_risk_per_trade_pct=1.0))
+        risk = RiskEngine(RiskConfig(news_auto=False, max_lot=0.05, max_risk_per_trade_pct=1.0))
         return ToolExecutor(self.broker, risk, self.journal, Notifier(), mode, 260512, "", "p1")
 
     def test_place_list_cancel(self):
