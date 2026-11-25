@@ -85,6 +85,10 @@ class SwingBot:
         self.done_bar = 0  # last bar whose signal was fully handled
         self.publish = False  # live stage status for the dashboard (set in main)
         self._last_pub = None
+        # GOLD keeps the original ids ("swing-<bar>", status "swing"); other symbols get their own namespace
+        sym = getattr(broker, "symbol", "GOLD")
+        self.prefix = "swing-" if sym in ("GOLD", None) else f"swing-{sym}-"
+        self.component = "swing" if sym in ("GOLD", None) else f"swing_{sym.lower()}"
 
     def _own_position(self):
         return next((p for p in self.b.positions() if p.magic == self.b.magic), None)
@@ -92,12 +96,12 @@ class SwingBot:
     def _entry_bar_time(self, ticket: int) -> int | None:
         row = self.j.db.execute("SELECT cycle_id FROM orders WHERE ticket = ? AND cycle_id LIKE 'swing-%'",
                                 (ticket,)).fetchone()
-        return int(row["cycle_id"].split("-")[1]) if row else None
+        return int(row["cycle_id"].split("-")[-1]) if row else None
 
     def _pub(self, stage: str, detail: str, state: str = "idle") -> None:
         if self.publish and (stage, detail, state) != self._last_pub:
             self._last_pub = (stage, detail, state)
-            set_stage("swing", stage, detail, None, state)
+            set_stage(self.component, stage, detail, None, state)
 
     def step(self) -> dict[str, Any] | None:
         sig = self._step()
@@ -128,7 +132,7 @@ class SwingBot:
             self._pub("broker", f"สัญญาณออก: ปิด {pos.side} {pos.ticket}", "active")
             r = self.b.close_position(pos.ticket)
             self.j.event("swing", json.dumps({"action": "exit", "ticket": pos.ticket, "ok": r.ok,
-                                              "retcode": r.retcode, "price": r.price, **sig}), f"swing-{bar_time}")
+                                              "retcode": r.retcode, "price": r.price, **sig}), f"{self.prefix}{bar_time}")
             self.n.send(f"[SWING {self.mode}] exit {pos.side} {pos.ticket} ok={r.ok} @ {r.price}")
             if not r.ok:
                 return sig  # retry next poll
@@ -139,17 +143,17 @@ class SwingBot:
             self.done_bar = bar_time
             return sig
         if os.path.exists(self.kill):
-            self.j.event("swing", json.dumps({"action": "skip_kill_switch", **sig}), f"swing-{bar_time}")
+            self.j.event("swing", json.dumps({"action": "skip_kill_switch", **sig}), f"{self.prefix}{bar_time}")
             self.done_bar = bar_time
             return sig
-        if self.j.db.execute("SELECT 1 FROM orders WHERE cycle_id = ?", (f"swing-{bar_time}",)).fetchone():
+        if self.j.db.execute("SELECT 1 FROM orders WHERE cycle_id = ?", (f"{self.prefix}{bar_time}",)).fetchone():
             self.done_bar = bar_time  # already handled before a restart
             return sig
         q = self.b.quote()
         delay_min = (q.server_epoch - (bar_time + H4)) / 60 if q.server_epoch else 0
         if delay_min > self.max_delay:
             self.j.event("swing", json.dumps({"action": "skip_stale", "delay_min": delay_min, **sig}),
-                         f"swing-{bar_time}")
+                         f"{self.prefix}{bar_time}")
             self.done_bar = bar_time
             return sig
         spec = self.b.spec()
@@ -162,7 +166,7 @@ class SwingBot:
         sl = round(entry - dist if side == "buy" else entry + dist, spec.digits)
         acc = self.b.account()
         lot = size_lot(acc.equity, self.risk_pct, dist, spec, self.max_lot)
-        row = dict(cycle_id=f"swing-{bar_time}", mode=self.mode, side=side, requested_lot=lot, lot=lot, sl=sl, tp=0.0,
+        row = dict(cycle_id=f"{self.prefix}{bar_time}", mode=self.mode, side=side, requested_lot=lot, lot=lot, sl=sl, tp=0.0,
                    agent_reason="H4 DON20_10 entry", entry_ref=entry, spread_points=spread_pts, order_type="market")
         if lot <= 0:
             self.j.order(**row, approved=0, sent=0, ok=0, reasons="lot below broker minimum for the risk budget")
@@ -183,11 +187,15 @@ class SwingBot:
 
 
 def report(broker, journal: Journal) -> None:
-    rows = journal.db.execute("SELECT * FROM orders WHERE cycle_id LIKE 'swing-%' AND ok = 1 ORDER BY ts").fetchall()
+    pat = "swing-%" if broker.symbol == "GOLD" else f"swing-{broker.symbol}-%"
+    rows = [r for r in journal.db.execute("SELECT * FROM orders WHERE cycle_id LIKE ? AND ok = 1 ORDER BY ts",
+                                          (pat,)).fetchall()
+            if broker.symbol != "GOLD" or r["cycle_id"].split("-")[1].isdigit()]
     total_r = 0.0
     for r in rows:
         d = broker.deal_history(int(r["ticket"])) or {}
-        risk_money = abs((r["price"] or r["entry_ref"]) - r["sl"]) / 0.01 * 0.01 * (r["lot"] / 0.01)
+        spec = broker.spec()
+        risk_money = abs((r["price"] or r["entry_ref"]) - r["sl"]) / spec.tick_size * spec.tick_value * r["lot"]
         res = d.get("net_profit")
         rr = (res / risk_money) if (res is not None and risk_money) else None
         total_r += rr or 0.0

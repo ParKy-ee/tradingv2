@@ -84,6 +84,23 @@ class BotStepTests(unittest.TestCase):
         self.assertEqual((side, tp), ("buy", 0.0))
         self.assertLess(sl, 2650.2)
 
+    def test_second_symbol_has_its_own_ids_and_does_not_see_gold_orders(self):
+        j = Journal(":memory:")
+        gold, btc = FakeBroker(), FakeBroker()
+        gold.symbol, btc.symbol = "GOLD", "BTCUSD"
+        g = SwingBot(gold, j, Notifier(), "demo", "x", 0.5, 0.05, 150, 30)
+        x = SwingBot(btc, j, Notifier(), "demo", "x", 0.5, 0.05, 150, 30)
+        self.assertEqual((g.prefix, g.component), ("swing-", "swing"))
+        self.assertEqual((x.prefix, x.component), ("swing-BTCUSD-", "swing_btcusd"))
+        j.order(cycle_id="swing-1000", mode="demo", side="buy", requested_lot=0.01, lot=0.01, sl=1.0, tp=0.0,
+                agent_reason="", entry_ref=2.0, spread_points=1, order_type="market", approved=1, sent=1, ok=1,
+                ticket=5)
+        j.order(cycle_id="swing-BTCUSD-1000", mode="demo", side="sell", requested_lot=0.01, lot=0.01, sl=3.0,
+                tp=0.0, agent_reason="", entry_ref=2.0, spread_points=1, order_type="market", approved=1, sent=1,
+                ok=1, ticket=6)
+        self.assertEqual(x._entry_bar_time(6), 1000)
+        self.assertEqual(g._entry_bar_time(5), 1000)
+
 
 if __name__ == "__main__":
     unittest.main()

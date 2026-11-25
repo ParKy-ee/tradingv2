@@ -133,6 +133,14 @@ python -m xau_agent.swing        # ทดสอบระบบ D1/H4 (ข้อ�
 python -m xau_agent.swing_bot --check    # ดูสัญญาณ H4 ปัจจุบัน ไม่ส่งออเดอร์
 python -m xau_agent.swing_bot            # รัน swing bot (MODE=demo) แยก process, magic 260513
 python -m xau_agent.swing_bot --report   # ผลไม้ที่ปิดแล้ว เทียบกับค่าคาดหวังจาก backtest
+python -m xau_agent.multi          # ทดสอบกฎ H4 เดียวกันกับ symbol อื่นของ XM (ผ่าน: GOLD, BTCUSD)
+```
+
+รัน swing bot ตัวที่สองกับ symbol อื่น (แยก process, magic ต่างกัน, id ไม่ชนกับ GOLD):
+
+```powershell
+$env:SYMBOL='BTCUSD'; $env:SWING_MAGIC='260514'; $env:SWING_MAX_SPREAD_POINTS='10000'; $env:MODE='demo'
+python -m xau_agent.swing_bot
 ```
 
 swing bot ทำตามกฎเดียวกับ backtest เป๊ะ (ไม่มี LLM veto เพื่อให้วัดผลเทียบได้): stop ที่โบรก 2x ATR20,

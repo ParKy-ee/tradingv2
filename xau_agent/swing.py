@@ -23,6 +23,7 @@ SPREAD_FRAC = 0.55 / REF_PRICE
 SLIP_FRAC = 0.10 / REF_PRICE
 SWAP_LONG_FRAC = -0.695 / REF_PRICE  # per night, price units / price
 SWAP_SHORT_FRAC = 0.1507 / REF_PRICE
+DEFAULT_COSTS = (SPREAD_FRAC, SLIP_FRAC, SWAP_LONG_FRAC, SWAP_SHORT_FRAC)
 
 
 def atr(bars, i, n=20):
@@ -45,9 +46,12 @@ def _nights(t0: int, t1: int) -> int:
     return n
 
 
-def backtest(bars: list[dict], rule: str, sides=("buy", "sell"), t_start: int = 0) -> list[dict]:
+def backtest(bars: list[dict], rule: str, sides=("buy", "sell"), t_start: int = 0,
+             costs: tuple[float, float, float, float] | None = None) -> list[dict]:
     """rule: DON20_10 | DON55_20 | SMA50_200 | BASE20_10 | BASE55_20 (BASE = enter whenever flat, same exits:
     the no-signal baseline that shows how much of a result is just drift)."""
+    """costs = (spread, slippage, swap_long, swap_short) as fractions of price; default = XM GOLD."""
+    SPREAD_FRAC, SLIP_FRAC, SWAP_LONG_FRAC, SWAP_SHORT_FRAC = costs or DEFAULT_COSTS
     trades: list[dict] = []
     pos = None
     blocked = None  # SMA: side stopped out; re-enter only after the trend flips and comes back

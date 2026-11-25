@@ -214,3 +214,23 @@
 - Verdict: no filter passes. "Stalled trend" does not separate winners from losers in these setups; the live
   losing streak is ordinary variance of setups with negative expectancy (no-cost avg R ≈ 0). Not adopted.
   Reconfirms: the M5 setups need a different source of edge, not more filters. H4 swing stays the main test.
+
+## 2026-11-25 16:45 — direction change: proven rules trade, M5 agent only observes; BTCUSD swing added
+- First git commit of the project (6f6acc3).
+- M5 agent restarted with MODE=advisory (the .env value; it had been launched with a MODE=demo override). It keeps
+  analysing every M5 bar and logging, but sends no orders: the M5 setups have no edge (backtest + regime study),
+  so more live losses would only re-prove that. The H4 swing bot(s) remain on DEMO.
+- Multi-symbol test of the unchanged H4 DON20_10 rule (xau_agent/multi.py, rules and pass criteria declared
+  before running: n>=100, avg R>=+0.05, >0 in both halves, beats the enter-whenever-flat baseline). Real-H4
+  periods only; per-symbol spread from history, slippage 20% of spread, today's XM swaps.
+  avg R (n): GOLD +0.135 (603) PASS | BTCUSD +0.459 (527) PASS | SILVER +0.054 (1st half −0.058) | GER40 −0.016 |
+  JP225 −0.016 | OIL −0.001 | EURUSD −0.071 | GBPUSD −0.066 | USDJPY −0.059 | USDCAD −0.074 | US100 −0.071 |
+  US30 −0.087 | AUDUSD −0.128 | UK100 −0.163 | US500 −0.168. Indices: longs positive, shorts strongly negative.
+  2 of 15 pass where ~1 is expected by luck, so passes are forward-test candidates, not proof.
+- BTCUSD checks: positive in 7/10 years (2021 0.00, 2022 −0.10, 2025 −0.23); without the 5 biggest winners
+  avg R +0.19; counting swap 7 days/week changes nothing. Money PF 1.01 only because price rose 1k -> 59k
+  (late trades dominate in USD). Spread is large (8.5 bp) and already in the test.
+- swing_bot: per-symbol namespace (cycle ids "swing-<SYM>-<bar>", status component "swing_<sym>") so a second
+  instance cannot collide with GOLD; GOLD keeps its original ids. Report sizes risk from the symbol spec.
+- Started BTCUSD swing bot on DEMO: SYMBOL=BTCUSD SWING_MAGIC=260514 SWING_MAX_SPREAD_POINTS=10000
+  (pid logs/swing_btcusd.pid), risk 1%/trade, max 0.05 lot. Dashboard shows a BTCUSD swing panel.

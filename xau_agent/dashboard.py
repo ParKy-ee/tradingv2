@@ -122,7 +122,8 @@ def collect(broker=None, n_cycles: int = 40) -> dict[str, Any]:
     except sqlite3.OperationalError:
         upcoming = []
     data: dict[str, Any] = {
-        "generated_utc": now.isoformat(), "processes": {"m5_agent": _alive("agent.pid"), "swing_bot": _alive("swing.pid")},
+        "generated_utc": now.isoformat(), "processes": {"m5_agent": _alive("agent.pid"), "swing_bot": _alive("swing.pid"),
+                                                     "swing_btc": _alive("swing_btcusd.pid")},
         "stop_file": (ROOT / "STOP").exists(), "cycles": cycles, "orders": orders, "events": events,
         "news": upcoming, "market": None, "account": None, "positions": [], "pending": [], "stats": None,
         "swing": None,
@@ -253,6 +254,8 @@ details summary{cursor:pointer;color:var(--muted)}label{font-size:13px}
 <div class="flow" id="flowm5"></div><div class="now" id="nowm5"></div><details><summary>ลำดับการทำงานล่าสุด (live)</summary><div class="feed" id="feedm5"></div></details></section>
 <section class="flowwrap" id="liveswing"><h2><span class="live"></span>Swing bot H4 <span class="muted" style="font-weight:400" id="swage"></span></h2>
 <div class="flow" id="flowsw"></div><div class="now" id="nowsw"></div></section>
+<section class="flowwrap" id="livebtc"><h2><span class="live"></span>Swing bot H4 · BTCUSD (forward test) <span class="muted" style="font-weight:400" id="btcage"></span></h2>
+<div class="flow" id="flowbtc"></div><div class="now" id="nowbtc"></div></section>
 <section><h2>สรุปรอบล่าสุด (ทุก 30 วินาที)</h2><div class="pipe" id="pipe"></div></section>
 <section class="grid"><div class="card"><h2>รอบการตัดสินใจ (M5)</h2><div class="tl" id="tl"></div></div>
 <div class="card"><h2 id="dtitle">รายละเอียด</h2><div id="detail" class="muted">เลือกรอบทางซ้าย</div></div></section>
@@ -274,7 +277,7 @@ const ago=ts=>{const m=Math.round((Date.now()-new Date(ts))/60000);return m<1?'�
 const setupOf=s=>{s=String(s||'');const m=s.match(/Setup(?: is)?:?\**\s*(RANGE_FADE|BREAKOUT|PULLBACK|NONE)/i)||s.match(/\b(RANGE_FADE|BREAKOUT|PULLBACK)\b/);return m?m[1].toUpperCase().replace('NONE',''):''};
 $('gen').textContent='อัปเดต '+th(D.generated_utc)+' · '+ago(D.generated_utc);
 const pr=D.processes||{};const st=v=>v===true?'<span class="ok">● ทำงาน</span>':v===false?'<span class="bad">● หยุด</span>':'<span class="idle">● ไม่ทราบ</span>';
-$('procs').innerHTML=`<span class="pill">บอท M5 ${st(pr.m5_agent)}</span> <span class="pill">Swing H4 ${st(pr.swing_bot)}</span> `+(D.stop_file?'<span class="pill bad">STOP file เปิดอยู่</span>':'');
+$('procs').innerHTML=`<span class="pill">บอท M5 ${st(pr.m5_agent)}</span> <span class="pill">Swing H4 ${st(pr.swing_bot)}</span> <span class="pill">Swing BTC ${st(pr.swing_btc)}</span> `+(D.stop_file?'<span class="pill bad">STOP file เปิดอยู่</span>':'');
 const last=(D.cycles||[])[0]||{};const lastOrder=(D.orders||[]).find(o=>o.cycle_id===last.cycle_id)||(D.orders||[])[0];
 const review=(D.events||[]).find(e=>e.kind==='order_review');
 const stages=[];
@@ -330,8 +333,9 @@ function drawFlow(el,nodes,st){if(!st){el.innerHTML='<span class="muted">ยั�
  el.innerHTML=nodes.map((n,i)=>{let c='';if(n[0]===cur)c=st.state==='blocked'?'blocked':st.state==='error'?'error':'active';else if(bad[n[0]])c=bad[n[0]];else if(visited.has(n[0])&&cur!=='wait_candle')c='visited';
   const edge=i<nodes.length-1?`<div class="edge ${i<ai&&cur!=='wait_candle'?'on':''}"></div>`:'';
   return `<div class="node ${c}"><div class="ic">${n[1]}</div><div class="nm">${n[2]}</div><div class="sb">${n[3]}</div></div>${edge}`}).join('')}
-function renderLive(){const m=window.XAU_STATUS_M5,w=window.XAU_STATUS_SWING;
- drawFlow($('flowm5'),M5N,m);drawFlow($('flowsw'),SWN,w);
+function renderLive(){const m=window.XAU_STATUS_M5,w=window.XAU_STATUS_SWING,bt=window.XAU_STATUS_SWING_BTCUSD;
+ drawFlow($('flowm5'),M5N,m);drawFlow($('flowsw'),SWN,w);drawFlow($('flowbtc'),SWN,bt);
+ if(bt){$('nowbtc').innerHTML=`<span class="big">${STL[bt.stage]||bt.stage}</span><span>${esc(bt.detail)}</span><span class="muted">มา ${dur(secs(bt.since))}</span>`;$('btcage').textContent='อัปเดต '+th(bt.since)}
  if(m){const a=secs(m.since);$('livem5').classList.toggle('stale',secs((m.feed||[{}])[0].ts||m.since)>420&&m.stage!=='wait_candle');
   let extra='';if(m.stage==='wait_candle'&&m.next_at){const left=Math.max(0,Math.round((new Date(m.next_at)-Date.now())/1000));extra=` · แท่งถัดไปใน <b>${dur(left)}</b>`;
    if(m.last_result)extra+=`<br><span class="muted">รอบล่าสุด: <b>${esc(m.last_result.decision)}</b> ${esc((m.last_result.summary||'').replace(/\*\*/g,'').slice(0,160))}</span>`}
@@ -339,7 +343,7 @@ function renderLive(){const m=window.XAU_STATUS_M5,w=window.XAU_STATUS_SWING;
   $('m5age').textContent='อัปเดต '+th(m.since);
   $('feedm5').innerHTML=(m.feed||[]).map(f=>`<div><span class="muted">${new Date(f.ts).toLocaleTimeString('th-TH',{hour12:false})}</span> · <b class="${f.state==='blocked'?'warn':f.state==='error'?'bad':''}">${STL[f.stage]||f.stage}</b> · ${esc(f.detail)}</div>`).join('')}
  if(w){$('nowsw').innerHTML=`<span class="big">${STL[w.stage]||w.stage}</span><span>${esc(w.detail)}</span><span class="muted">มา ${dur(secs(w.since))}</span>`;$('swage').textContent='อัปเดต '+th(w.since)}}
-function loadStatus(){['m5','swing'].forEach(c=>{const old=document.getElementById('st_'+c);const sc=document.createElement('script');sc.id='st_'+c;sc.src='status_'+c+'.js?'+Date.now();
+function loadStatus(){['m5','swing','swing_btcusd'].forEach(c=>{const old=document.getElementById('st_'+c);const sc=document.createElement('script');sc.id='st_'+c;sc.src='status_'+c+'.js?'+Date.now();
  sc.onload=()=>{renderLive();if(old)old.remove()};sc.onerror=()=>{if(old)old.remove()};document.body.appendChild(sc)})}
 loadStatus();setInterval(loadStatus,2000);setInterval(renderLive,1000);
 let auto=true;try{auto=localStorage.getItem('xau_auto')!=='0'}catch(e){}$('auto').checked=auto;
