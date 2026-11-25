@@ -75,12 +75,14 @@ powershell -ExecutionPolicy Bypass -File scripts\start_all.ps1
    ```powershell
    ssh-keygen -t ed25519
    ```
-   คัดลอกไฟล์ `%USERPROFILE%\.ssh\id_ed25519.pub` (ไฟล์ **.pub** เท่านั้น ห้ามส่งไฟล์ที่ไม่มี .pub) ไปที่เครื่อง runtime
-3. บนเครื่อง runtime เปิด PowerShell แบบ **Run as administrator**:
+   คัดลอก `%USERPROFILE%\.ssh\id_ed25519.pub` (ไฟล์ **.pub** เท่านั้น ห้ามใช้ไฟล์ที่ไม่มี .pub) ไปไว้ใน `keys\<ชื่อเครื่อง>.pub`
+   ของ repo แล้ว commit/push — public key ไม่ใช่ความลับ (key ของ MSI อยู่ที่ `keys\msi.pub` แล้ว)
+3. บนเครื่อง runtime: `git clone` หรือ `git pull` ให้ได้ `keys\` ล่าสุด แล้วเปิด PowerShell แบบ **Run as administrator**:
    ```powershell
    cd D:\xau-agent
-   powershell -ExecutionPolicy Bypass -File scripts\runtime_setup.ps1 -PublicKeyFile C:\path\id_ed25519.pub
+   powershell -ExecutionPolicy Bypass -File scripts\runtime_setup.ps1
    ```
+   (สคริปต์อนุญาตทุก key ใน `keys\*.pub`; หรือใส่ `-PublicKeyFile C:\path\key.pub` สำหรับ key ที่ไม่อยู่ใน repo)
    เปิด OpenSSH Server, firewall รับ SSH/dashboard **เฉพาะจาก Tailscale (100.64.0.0/10)**, ปิด login ด้วยรหัสผ่าน,
    สร้าง task `xau-start` (เริ่มบอทเองตอน login) และ `xau-stop`
 4. ทดสอบจากเครื่องที่ใช้ทำงาน: `ssh <ชื่อผู้ใช้ Windows>@100.81.86.78`

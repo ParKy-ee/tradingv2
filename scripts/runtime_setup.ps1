@@ -1,10 +1,11 @@
 # One-time setup of the runtime PC for remote work over Tailscale. Run in an ELEVATED PowerShell on the runtime PC:
-#   powershell -ExecutionPolicy Bypass -File scripts\runtime_setup.ps1 -PublicKeyFile C:\path\id_ed25519.pub
+#   powershell -ExecutionPolicy Bypass -File scripts\runtime_setup.ps1     # authorizes every keys\*.pub in the repo
+#   (or -PublicKeyFile C:\path\id_ed25519.pub for a key that is not in the repo)
 # What it does (nothing is opened to the internet):
 #   1. installs and starts Windows OpenSSH Server (Tailscale SSH does not run on Windows)
 #   2. firewall: SSH (22) and the dashboard web port (8765) accepted ONLY from Tailscale addresses 100.64.0.0/10;
 #      the default "allow SSH from anywhere" rule is disabled
-#   3. installs your public key and turns password login OFF (key only) — skipped if -PublicKeyFile is not given
+#   3. installs your public key and turns password login OFF (key only) — skipped if no key is found
 #   4. makes PowerShell the SSH shell
 #   5. scheduled tasks: "xau-start" (at logon, in your desktop session, so MT5 works) and "xau-stop"; from SSH run
 #      `schtasks /run /tn xau-start` or `schtasks /run /tn xau-stop`
@@ -28,19 +29,24 @@ foreach ($r in @(@{n = 'xau-ssh-tailscale'; p = 22}, @{n = 'xau-dashboard-tailsc
         -RemoteAddress '100.64.0.0/10' -Action Allow | Out-Null
 }
 
-# 3. Key-only login
+# 3. Key-only login (keys: -PublicKeyFile, or every keys\*.pub in the repo)
 $cfg = "$env:ProgramData\ssh\sshd_config"
-if ($PublicKeyFile) {
-    $key = (Get-Content $PublicKeyFile -Raw).Trim()
-    if ($key -notmatch '^ssh-(ed25519|rsa) ') { throw "$PublicKeyFile does not look like a public key (.pub)" }
+$keyFiles = if ($PublicKeyFile) { @($PublicKeyFile) } else { @(Get-ChildItem "$root\keys\*.pub" -ErrorAction SilentlyContinue | ForEach-Object FullName) }
+if ($keyFiles.Count) {
     $isAdmin = (Get-LocalGroupMember -SID 'S-1-5-32-544' | Where-Object { $_.Name -like "*\$env:USERNAME" })
-    if ($isAdmin) {
-        $ak = "$env:ProgramData\ssh\administrators_authorized_keys"   # Windows OpenSSH uses this for admins
-        if (-not (Test-Path $ak) -or -not (Select-String -Path $ak -SimpleMatch $key -Quiet)) { Add-Content $ak $key }
-        icacls $ak /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F' | Out-Null
-    } else {
-        $dir = "$env:USERPROFILE\.ssh"; New-Item -ItemType Directory -Force $dir | Out-Null
-        Add-Content "$dir\authorized_keys" $key
+    foreach ($kf in $keyFiles) {
+        $key = (Get-Content $kf -Raw).Trim()
+        if ($key -notmatch '^ssh-(ed25519|rsa) ') { throw "$kf does not look like a public key (.pub)" }
+        if ($isAdmin) {
+            $ak = "$env:ProgramData\ssh\administrators_authorized_keys"   # Windows OpenSSH uses this for admins
+            if (-not (Test-Path $ak) -or -not (Select-String -Path $ak -SimpleMatch $key -Quiet)) { Add-Content $ak $key }
+            icacls $ak /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F' | Out-Null
+        } else {
+            $dir = "$env:USERPROFILE\.ssh"; New-Item -ItemType Directory -Force $dir | Out-Null
+            $ak = "$dir\authorized_keys"
+            if (-not (Test-Path $ak) -or -not (Select-String -Path $ak -SimpleMatch $key -Quiet)) { Add-Content $ak $key }
+        }
+        Write-Host "authorized key: $kf"
     }
     $text = Get-Content $cfg -Raw
     $text = $text -replace '(?m)^#?\s*PasswordAuthentication\s+\w+', 'PasswordAuthentication no'
@@ -48,7 +54,7 @@ if ($PublicKeyFile) {
     Set-Content $cfg $text -Encoding ascii
     Write-Host 'key installed; password login disabled'
 } else {
-    Write-Warning 'No -PublicKeyFile: password login is still ON. Re-run with your public key to switch to key-only.'
+    Write-Warning 'No public key found (keys\*.pub or -PublicKeyFile): password login is still ON.'
 }
 
 # 4. PowerShell as the SSH shell
