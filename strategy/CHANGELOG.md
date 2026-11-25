@@ -244,3 +244,15 @@
   backtest; worst 1-year −15R / −18R; longest losing streaks 12 / 14 trades. A losing first year is NOT evidence
   against the rule. Forward test purpose = verify execution matches the backtest (fills, spread, slippage, missed
   signals), not to prove edge.
+
+## 2026-11-25 17:25 — H1 version of the swing rule: FAIL, H4 only
+- Pre-declared (multi.py header): same DON20_10 rule on H1, same cost model, real-H1 data only; pass needs the H4
+  criteria plus avg R > 0 on the last 30% of trades and t >= 2.
+- GOLD H1 (2018–2026): 1625 trades (183/yr), avg R +0.019, t 0.41, halves −0.022 / +0.059, last 30% +0.112,
+  buy +0.091 / sell −0.059, PF 1.06 -> FAIL (fails avg R and t).
+- BTCUSD H1 (2020–2026): 1586 trades (230/yr), avg R +0.021, t 0.37, halves +0.092 / −0.021, last 30% −0.085,
+  PF 0.88 -> FAIL.
+- Reading: more trades but the per-trade edge falls to ~0, so evidence does not accumulate faster. Same pattern
+  as M5/H1 earlier: the shorter the horizon, the smaller the edge relative to costs and noise.
+- For transparency, H4 against the stricter H1 bar: GOLD t 1.67 (fails t>=2), BTCUSD last 30% +0.012 (barely
+  positive). Both stay as forward-test candidates under the original H4 criteria, with weak evidence.
