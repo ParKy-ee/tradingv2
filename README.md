@@ -167,6 +167,15 @@ python -m xau_agent.dashboard --watch    # เขียน dashboard.html ให
 ทีละขั้น (ข้อมูลตลาด → ข่าว → Agent → Risk engine → Opus → โบรก + Swing H4) และแต่ละรอบว่า agent สั่งเครื่องมืออะไร
 ได้ผลอะไร และสรุปว่าอย่างไร อ่านอย่างเดียว ไม่มีปุ่มสั่งเทรด
 
+## เครื่องต้องไม่เข้า standby
+
+เครื่องที่ใช้ Modern Standby (S0) จะพักโปรแกรมทั้งหมดเมื่อจอดับ บอทจะหยุดตาม ใช้ตัวช่วยนี้เปิดจอค้างไว้ระหว่างรันบอท
+(ไม่เปลี่ยนการตั้งค่า Windows, ปิดฝาเครื่องยัง sleep) และควรเสียบสายชาร์จ:
+
+```
+python -m xau_agent.awake      # หยุด: kill pid ใน logs/awake.pid
+```
+
 ## ลำดับที่แนะนำ
 
 1. `--check` บนบัญชี demo → ตรวจชื่อ symbol, spread จริง, tick value

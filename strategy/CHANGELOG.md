@@ -310,3 +310,10 @@
   partly REVERSE over the next hours, most at 14:00 NY (Fed statements/minutes). That is a hypothesis formed after
   seeing the data (snooping), so it is NOT adopted. To test it fairly it needs new data: record each live news
   reaction from now on and check the fade only on events after 2026-11-25.
+
+## 2026-11-25 20:00 — bots were being suspended by Modern Standby; keep-screen-on helper
+- Finding: M5 cycles stopped 17:36–17:51 and 19:36–19:51 (one cycle "took" 26 min). Kernel-Power 506/507 show the
+  PC entering S0 low-power idle (Modern Standby) when the screen turns off (display timeout 3 min), which suspends
+  desktop programs. ES_SYSTEM_REQUIRED (bots) and the app's keep-awake do not prevent it. Laptop was on battery.
+- xau_agent/awake.py: holds ES_DISPLAY_REQUIRED|ES_SYSTEM_REQUIRED (screen stays on, no Windows setting changed;
+  stop the process to undo; lid close still sleeps). Started with the user's approval (pid logs/awake.pid).
