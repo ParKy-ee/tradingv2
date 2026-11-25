@@ -23,6 +23,14 @@ H1 test (declared 2026-11-25 17:15, before running): same rule, bar counts and A
 channel spans 20 hours instead of 80); same costs model; real-H1 period only (>= 12 bars per trading day).
 PASS needs everything above AND avg R > 0 on the last 30% of trades (out-of-sample style holdout) AND t >= 2.
 A PASS would make H1 a forward-test candidate alongside H4 (more trades); a FAIL keeps H4 only.
+
+Round 2 on H4 (declared 2026-11-25 20:20 Thai, before running): symbols similar to the two passes, untested so far.
+  Metals: XPTUSD, XPDUSD. Energies: BRENTCash, NGASCash. Crypto (liquid majors): ETHUSD, LTCUSD, XRPUSD, BCHUSD,
+  SOLUSD, ADAUSD, DOGEUSD, LINKUSD, DOTUSD, AVAXUSD. (Gold quoted in other currencies is skipped: same market.)
+  Because 14 more symbols raise the chance of a lucky pass, round 2 uses the stricter bar (--strict): the H4
+  criteria AND avg R > 0 on the last 30% of trades AND t >= 2. Altcoins move with BTC, so passes are not
+  independent bets; total crypto risk must be capped if several are added.
+    python -m xau_agent.multi --strict --symbols XPTUSD,XPDUSD,...
 """
 from __future__ import annotations
 
@@ -89,7 +97,7 @@ def costs_for(bars: list[dict], meta: dict) -> tuple[tuple[float, float, float, 
                "swap_long_bp": round(sl / price * 1e4, 3), "swap_short_bp": round(ss / price * 1e4, 3)}
 
 
-def evaluate(symbol: str, tf: str = "H4") -> dict:
+def evaluate(symbol: str, tf: str = "H4", strict: bool = False) -> dict:
     bars, meta = fetch(symbol, tf)
     t0 = real_h4_start(bars, 4 if tf == "H4" else 12)
     if symbol == "GOLD" and tf == "H4":
@@ -114,7 +122,7 @@ def evaluate(symbol: str, tf: str = "H4") -> dict:
             "win": s.get("win"), "avg_r": s.get("avg_r"), "pf": s.get("pf"), "h1": h1.get("avg_r"),
             "h2": h2.get("avg_r"), "base": sb.get("avg_r"), "buy": by_side["buy"].get("avg_r"),
             "sell": by_side["sell"].get("avg_r"), "t": round(tstat, 2), "hold": hold.get("avg_r"),
-            "pass": ok and (tf == "H4" or ((hold.get("avg_r") or -1) > 0 and tstat >= 2)), **cinfo}
+            "pass": ok and ((tf == "H4" and not strict) or ((hold.get("avg_r") or -1) > 0 and tstat >= 2)), **cinfo}
 
 
 def main() -> None:
@@ -122,13 +130,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tf", default="H4")
     ap.add_argument("--symbols", default=",".join(SYMBOLS))
+    ap.add_argument("--strict", action="store_true", help="also require last-30%% avg R > 0 and t >= 2")
     a = ap.parse_args()
     f = lambda v: "   -  " if v is None else f"{v:+.3f}"  # noqa: E731
     print(f"[{a.tf}] {'symbol':10s} from  yrs   n  n/yr  win   avgR   1st    2nd    base   buy    sell   last30%  t    spr_bp  PASS")
     rows = []
     for sym in a.symbols.split(","):
         try:
-            r = evaluate(sym, a.tf)
+            r = evaluate(sym, a.tf, a.strict)
         except Exception as exc:
             print(f"{sym:10s} ERROR {exc}")
             continue

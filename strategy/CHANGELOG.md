@@ -317,3 +317,13 @@
   desktop programs. ES_SYSTEM_REQUIRED (bots) and the app's keep-awake do not prevent it. Laptop was on battery.
 - xau_agent/awake.py: holds ES_DISPLAY_REQUIRED|ES_SYSTEM_REQUIRED (screen stays on, no Windows setting changed;
   stop the process to undo; lid close still sleeps). Started with the user's approval (pid logs/awake.pid).
+
+## 2026-11-25 20:35 — round 2: symbols similar to GOLD/BTC on H4 DON20_10 (multi.py --strict): none pass
+- Pre-declared (multi.py header): XPTUSD, XPDUSD, BRENTCash, NGASCash and 10 liquid crypto majors; same rule and
+  cost model; stricter bar for the larger test count (H4 criteria + last 30% > 0 + t >= 2).
+- avg R (n, t, spread bp): XPT −0.332 (330, −4.31, 40) | XPD −0.416 (298, −4.83, 79) | BRENT −0.018 (465, −0.23, 3) |
+  NGAS −0.280 (515, −4.61, 50) | ETH +0.252 (577, +2.15, 30; 2nd half −0.040, last 30% −0.061) |
+  XRP +0.390 (570, +0.66; all from 2017–2021, 2nd half −0.355) | LTC −1.358 (296 bp spread) | BCH −0.706 |
+  SOL −0.213 | ADA −0.496 | DOGE −0.816 | LINK −0.045 | DOT −0.139 | AVAX −0.040.
+- Reading: XM spreads on altcoins (17–300 bp per trade) are far too wide for this rule; platinum/palladium/gas
+  lose clearly; ETH is the only near-miss and fails the recent-period checks. No symbol added. GOLD + BTCUSD stay.
