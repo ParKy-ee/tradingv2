@@ -11,3 +11,4 @@ data/
 dashboard.html
 dashboard.tmp
 status_*.js
+*.pub
