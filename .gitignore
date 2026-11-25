@@ -1,0 +1,13 @@
+.env
+.env.bak*
+*.sqlite
+*.sqlite-journal
+__pycache__/
+.venv/
+STOP
+logs/
+exports/
+data/
+dashboard.html
+dashboard.tmp
+status_*.js
