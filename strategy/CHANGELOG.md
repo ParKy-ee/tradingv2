@@ -339,3 +339,16 @@
 - Ops: PC entered standby at 00:08 Thai and hibernated 00:24 ("Hibernate from Sleep - Fixed Timeout") despite the
   awake helper -> bots offline 00:08–09:04 (lid close or manual sleep likely; awake cannot block those). Both
   exits were broker-side stops, so nothing was missed; no missed entry signals were logged after wake.
+
+## 2026-11-26 09:40 — exit-protection study (xau_agent/exits.py): every variant is worse; rule unchanged
+- Timeline of the first trades (M1): GOLD sell 3476.24 peaked +0.53R (+$49) 1 h 19 m after entry, then reversed
+  to the stop; BTC sell 58034 peaked +0.28R (+$21.5) after 45 min, then spent most of the time below −0.6R.
+  (The rule has no take-profit by design: it exits on the 10-bar channel or the broker stop.)
+- Pre-declared variants vs BASE on 13 y GOLD / 10 y BTC H4 (same entries; avg R, win%, maxDD R, trades >= 3R):
+  GOLD   BASE +0.125 33% DD17.4 45 | BE_1R +0.110 38% 14.5 36 | BE_05R +0.053 48% 19.1 31 | TRAIL_3A +0.102 37% 30.0 34
+         TP_2R +0.055 36% 29.9 0 | PART_1R +0.043 44% 19.5 19 | TIME_6 +0.087 33% 25.6 41
+  BTC    BASE +0.472 33% DD26.4 45 | BE_1R +0.452 42% 24.3 42 | BE_05R +0.388 53% 25.4 41 | TRAIL_3A +0.259 37% 16.3 41
+         TP_2R +0.133 39% 20.8 0 | PART_1R +0.214 43% 20.8 29 | TIME_6 +0.412 30% 27.9 45
+- Verdict: no variant passes (needs higher avg R on both symbols and both halves, DD <= BASE+10%). Protective exits
+  raise the win rate (up to 48–53%) but cut the large trends that pay for the losers (avg R falls by up to 2/3).
+  Breaking even at +0.5R would have saved today's GOLD trade and costs ~0.07R per trade over 13 years. BASE stays.
