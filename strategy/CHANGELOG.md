@@ -352,3 +352,16 @@
 - Verdict: no variant passes (needs higher avg R on both symbols and both halves, DD <= BASE+10%). Protective exits
   raise the win rate (up to 48–53%) but cut the large trends that pay for the losers (avg R falls by up to 2/3).
   Breaking even at +0.5R would have saved today's GOLD trade and costs ~0.07R per trade over 13 years. BASE stays.
+
+## 2026-11-26 09:20 — shadow HOLD monitor for open swing trades (logged only)
+- User request: an agent that watches open orders and would close before the stop. The exit study showed every
+  mechanical early exit lowered profit, so this starts in shadow mode: at each completed H4 bar while a swing trade
+  is open (not the entry bar), swing_bot launches `python -m xau_agent.shadow --hold <cycle> --bar <t>` detached.
+  Opus gets open R, best R so far, bars held, stop and channel-exit level, D1/H4 bars, calendar, WebSearch (same
+  sandbox), and answers hold/close + p_loss. Stored as `shadow_hold` (deduplicated per bar) + logs/shadow/hold-*.json.
+- The prompt states the exit-study evidence so "in profit, could reverse" alone is not a reason to close.
+- `--report` now also prints rule R vs "close at the AI's first close call" per trade and in total.
+- Decision rule, fixed now: after >= 30 closed trades with hold reviews, the AI may get a real close vote only if
+  close-at-AI-call total R beats the rule's total R in both halves of those trades.
+- Verified: dry review of a hypothetical GOLD buy (+0.48R) -> "hold", p_loss 62, 3 turns. 86 tests pass. Swing
+  bots restarted (no open positions at restart).

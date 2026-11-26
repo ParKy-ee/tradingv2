@@ -111,6 +111,35 @@ class BotStepTests(unittest.TestCase):
             bot.step()  # same bar again: nothing new
             self.assertEqual(j.db.execute("SELECT COUNT(*) FROM events WHERE kind='swing_missed'").fetchone()[0], 1)
 
+    def test_hold_monitor_once_per_bar_after_entry_bar(self):
+        b = FakeBroker()
+        b.magic = 260513
+        closes = [2650.0] * 25 + [2660.0, 2661.0, 2662.0]  # bars 0..26 completed, 27 forming
+        state = {"bars": mk(closes)}
+        b.bars = lambda tf, n: [dict(x, tick_volume=1) for x in state["bars"]]
+        entry_bar = state["bars"][25]["time"]
+        j = Journal(":memory:")
+        j.order(cycle_id=f"swing-{entry_bar}", mode="demo", side="buy", requested_lot=0.01, lot=0.01, sl=2640.0,
+                tp=0.0, agent_reason="", entry_ref=2660.0, spread_points=1, order_type="market", approved=1, sent=1,
+                ok=1, ticket=77)
+        b._positions.append(Position(77, "buy", 0.01, 2660.0, 2640.0, 0.0, 1.0, 260513))
+        bot = SwingBot(b, j, Notifier(), "demo", "nonexistent-STOP", 0.5, 0.05, 150, 30)
+        calls = []
+        bot.hold_shadow = lambda cid, t, sym: calls.append((cid, t))
+        bot.step()
+        bot.step()  # same bar: no second call
+        self.assertEqual(calls, [(f"swing-{entry_bar}", state["bars"][26]["time"])])
+        state["bars"] = mk(closes + [2663.0])  # next bar completes
+        bot.step()
+        self.assertEqual(len(calls), 2)
+        # entry bar itself is never reviewed
+        state["bars"] = mk(closes[:27])  # last completed = entry bar
+        bot2 = SwingBot(b, j, Notifier(), "demo", "nonexistent-STOP", 0.5, 0.05, 150, 30)
+        calls2 = []
+        bot2.hold_shadow = lambda cid, t, sym: calls2.append(t)
+        bot2.step()
+        self.assertEqual(calls2, [])
+
     def test_second_symbol_has_its_own_ids_and_does_not_see_gold_orders(self):
         j = Journal(":memory:")
         gold, btc = FakeBroker(), FakeBroker()

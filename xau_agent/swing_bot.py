@@ -86,6 +86,8 @@ class SwingBot:
         self.publish = False  # live stage status for the dashboard (set in main)
         self._last_pub = None
         self.shadow = None  # callable(cycle_id, symbol): shadow AI review after an entry (set in main)
+        self.hold_shadow = None  # callable(cycle_id, bar_time, symbol): shadow hold review each H4 bar (set in main)
+        self._hold_bar = 0
         # GOLD keeps the original ids ("swing-<bar>", status "swing"); other symbols get their own namespace
         sym = getattr(broker, "symbol", "GOLD")
         self.prefix = "swing-" if sym in ("GOLD", None) else f"swing-{sym}-"
@@ -167,6 +169,12 @@ class SwingBot:
             if not r.ok:
                 return sig  # retry next poll
             pos = None
+        if pos and self.hold_shadow and bar_time != self._hold_bar:
+            self._hold_bar = bar_time
+            row = self.j.db.execute("SELECT cycle_id FROM orders WHERE ticket = ? AND cycle_id LIKE 'swing-%'",
+                                    (pos.ticket,)).fetchone()
+            if row and bar_time > int(row["cycle_id"].split("-")[-1]):  # not the entry bar itself
+                self.hold_shadow(row["cycle_id"], bar_time, getattr(self.b, "symbol", "GOLD"))
         if bar_time == self.done_bar:
             return sig
         if pos or not sig["entry"]:
@@ -265,8 +273,9 @@ def main() -> None:
     bot.publish = True
     from .status import ROOT
     bot.seen_path = ROOT / "logs" / f"seen_{bot.component}.txt"
-    from .shadow import launch
+    from .shadow import launch, launch_hold
     bot.shadow = launch  # logged opinion only; never changes the trade
+    bot.hold_shadow = launch_hold  # logged hold/close opinion each H4 bar while a trade is open; never acts
     print(f"keep PC awake while running: {keep_awake()}")
     while True:
         try:
