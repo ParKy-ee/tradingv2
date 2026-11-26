@@ -24,10 +24,26 @@ class CompanyTests(unittest.TestCase):
         facts = {"facts": {"us-gaap": {"Revenues": {"units": {"USD": [
             f("2025-01-01", "2025-03-31", 10, "Q1"), f("2025-04-01", "2025-06-30", 20, "Q2"),
             f("2025-07-01", "2025-09-30", 30, "Q3"), f("2025-01-01", "2025-12-31", 100, "FY", "10-K")]}}}}}
+        facts["facts"]["us-gaap"]["Revenues"]["units"]["USD"] += [  # a second year: must not trip on derived Q4
+            dict(f("2026-01-01", "2026-03-31", 11, "Q1"), fy=2026), dict(f("2026-04-01", "2026-06-30", 21, "Q2"), fy=2026),
+            dict(f("2026-07-01", "2026-09-30", 31, "Q3"), fy=2026),
+            dict(f("2026-01-01", "2026-12-31", 110, "FY", "10-K"), fy=2026)]
         q = quarterly(facts, ["Revenues"], "USD")
+        self.assertEqual(q["2026-12-31"]["value"], 47)
+        self.assertEqual(len(q), 8)
         self.assertEqual(q["2025-12-31"]["value"], 40)
         self.assertEqual(q["2025-12-31"]["fp"], "Q4")
-        self.assertEqual(len(q), 4)
+
+    def test_merged_tags_fill_each_period_from_the_tag_that_reports_it(self):
+        from xau_agent.companies import quarterly_merged
+
+        def f(start, end, val):
+            return {"start": start, "end": end, "val": val, "fy": 2025, "fp": "Q", "form": "10-Q", "filed": "x"}
+        facts = {"facts": {"us-gaap": {
+            "Revenues": {"units": {"USD": [f("2019-01-01", "2019-03-31", 5)]}},  # old tag, old period only
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [f("2026-01-01", "2026-03-31", 9)]}}}}}
+        q = quarterly_merged(facts, ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues"], "USD")
+        self.assertEqual({k: v["value"] for k, v in q.items()}, {"2026-03-31": 9, "2019-03-31": 5})
 
     def test_parse_view(self):
         v = parse_view('x {"stance": "like", "p_up_3m": 140, "business": "b"} y')

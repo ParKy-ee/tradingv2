@@ -14,3 +14,5 @@ status_*.js
 *.pub
 !keys/*.pub
 stocks.html
+*.sqlite-wal
+*.sqlite-shm

@@ -46,8 +46,9 @@ CREATE TABLE IF NOT EXISTS opinions (id INTEGER PRIMARY KEY AUTOINCREMENT, symbo
 
 
 def db() -> sqlite3.Connection:
-    c = sqlite3.connect(DB)
+    c = sqlite3.connect(DB, timeout=60)  # AI views, SEC updates and page renders may run at the same time
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
     return c
 
@@ -103,13 +104,28 @@ def update_prices(con: sqlite3.Connection, symbols: list[str]) -> None:
 
 
 # ---------------------------------------------------------------- financials (SEC EDGAR XBRL)
-REVENUE_TAGS = ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet"]
+REVENUE_TAGS = ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "RevenuesNetOfInterestExpense",
+                "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax"]
+NET_INCOME_TAGS = ["NetIncomeLoss", "ProfitLoss", "NetIncomeLossAvailableToCommonStockholdersBasic"]
+EPS_TAGS = ["EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"]
+
+
+def quarterly_merged(facts: dict, tags: list[str], unit: str) -> dict[str, dict]:
+    """Companies switch XBRL tags over the years: take each period from the first tag (in priority order) that
+    reports it, so a newer tag does not hide older quarters and vice versa."""
+    out: dict[str, dict] = {}
+    for tag in tags:
+        for end, v in quarterly(facts, [tag], unit).items():
+            out.setdefault(end, {**v, "tag": tag})
+    return out
 
 
 def sec_get(url: str) -> Any:
     ua = os.environ.get("SEC_USER_AGENT", "").strip()
     if not ua:
         raise RuntimeError("SEC_USER_AGENT not set")
+    if " " not in ua:  # SEC asks for a name and a contact email; add the project name if only an email is given
+        ua = f"XAU-Agent-Research {ua}"
     req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept-Encoding": "identity"})
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
@@ -132,10 +148,11 @@ def quarterly(facts: dict, tags: list[str], unit: str) -> dict[str, dict]:
                                "start": x["start"]}
             elif 350 <= days <= 380:
                 fy[x["end"]] = {"value": x["val"], "fy": x.get("fy"), "filed": x.get("filed"), "start": x["start"]}
+        reported = dict(q)  # only quarters the company reported; derived Q4s have no start date
         for end, a in fy.items():
             if end in q:
                 continue
-            inside = [v for k, v in q.items() if a["start"] <= v["start"] and k < end]
+            inside = [v for k, v in reported.items() if a["start"] <= v["start"] and k < end]
             if len(inside) == 3:
                 q[end] = {"value": a["value"] - sum(v["value"] for v in inside), "fy": a["fy"], "fp": "Q4",
                           "filed": a["filed"], "start": None}
@@ -157,8 +174,9 @@ def update_financials(con: sqlite3.Connection, symbols: list[str]) -> str:
             continue
         time.sleep(0.2)  # SEC fair-access limit is 10 requests/second
         f = sec_get(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json")
-        rev, ni = quarterly(f, REVENUE_TAGS, "USD"), quarterly(f, ["NetIncomeLoss"], "USD")
-        eps = quarterly(f, ["EarningsPerShareDiluted"], "USD/shares")
+        rev, ni = quarterly_merged(f, REVENUE_TAGS, "USD"), quarterly_merged(f, NET_INCOME_TAGS, "USD")
+        eps = quarterly_merged(f, EPS_TAGS, "USD/shares")
+        con.execute("DELETE FROM financials WHERE symbol = ?", (s,))
         src = f"SEC EDGAR XBRL companyfacts CIK{cik}"
         for end in sorted(set(rev) | set(ni))[-12:]:
             a = rev.get(end) or ni.get(end)
@@ -166,6 +184,7 @@ def update_financials(con: sqlite3.Connection, symbols: list[str]) -> str:
                         (s, end, a.get("fy"), a.get("fp"), (rev.get(end) or {}).get("value"),
                          (ni.get(end) or {}).get("value"), (eps.get(end) or {}).get("value"), a.get("filed"), src))
         con.execute("UPDATE companies SET cik = ? WHERE symbol = ?", (cik, s))
+        con.commit()  # one company at a time: never hold the database for the whole run
         done += 1
     con.commit()
     return f"SEC financials updated for {done} companies"
@@ -321,7 +340,7 @@ $('secnote').textContent=D.sec_enabled?'· งบการเงินจาก 
 let sortK='p',sortDir=-1,open=null;
 function val(s,k){const p=s.prices||{},v=s.view||{};return {symbol:s.symbol,price:p.price,ret_3m:p.ret_3m,ret_12m:p.ret_12m,dist:p.dist_sma200,stance:{like:2,neutral:1,dislike:0}[v.stance]??-1,p:v.p_up_3m??-1}[k]}
 function detail(s){const v=s.view;const f=s.financials||[];
- const fin=f.length?`<table><tr><th>ไตรมาส</th><th>รายได้</th><th>YoY</th><th>กำไรสุทธิ</th><th>EPS</th></tr>`+f.map((r,i)=>{const prev=f[i-4];const yoy=prev&&prev.revenue&&r.revenue?r.revenue/prev.revenue-1:null;return `<tr><td>${esc(r.fy)} ${esc(r.fp)} <span class="muted">${esc(r.period_end)}</span></td><td class="num">${big(r.revenue)}</td><td class="num">${pct(yoy)}</td><td class="num">${big(r.net_income)}</td><td class="num">${r.eps_diluted??'–'}</td></tr>`}).join('')+`</table><div class="muted">ที่มา: ${esc(f[0].source)}</div>`:'<span class="muted">ยังไม่มีงบการเงินทางการ (รอเปิด SEC)</span>';
+ const fin=f.length?`<table><tr><th>ไตรมาส</th><th>รายได้</th><th>YoY</th><th>กำไรสุทธิ</th><th>EPS</th></tr>`+f.map((r,i)=>{const prev=f[i-4];const yoy=prev&&prev.revenue&&r.revenue?r.revenue/prev.revenue-1:null;return `<tr><td>${esc(r.fy)} ${esc(r.fp)} <span class="muted">${esc(r.period_end)}</span></td><td class="num">${big(r.revenue)}</td><td class="num">${pct(yoy)}</td><td class="num">${big(r.net_income)}</td><td class="num">${r.eps_diluted??'–'}</td></tr>`}).join('')+`</table><div class="muted">ที่มา: ${esc(f[0].source)} · Q4 คำนวณจากทั้งปีลบ 3 ไตรมาส (EPS ของ Q4 เป็นค่าประมาณ) · ช่องว่าง = บริษัทไม่ได้รายงานในรูปแบบที่ดึงได้</div>`:'<span class="muted">ยังไม่มีงบการเงินทางการ (รอเปิด SEC)</span>';
  const p=s.prices||{};
  const px=`<div class="num">ราคา ${p.price??'–'} · 1 ด. ${pct(p.ret_1m)} · 6 ด. ${pct(p.ret_6m)} · momentum 12-1 ${pct(p.mom_12_1)}<br>ช่วง 52 สัปดาห์ ${p.low_52w??'–'} – ${p.high_52w??'–'} · ผันผวน/ปี ${p.vol_ann!=null?(p.vol_ann*100).toFixed(0)+'%':'–'}</div><div class="muted">${esc(p.source)} · ${th(p.asof)}</div>`;
  if(!v) return `<div class="grid"><div class="box"><h3>ราคา</h3>${px}</div><div class="box"><h3>งบการเงินรายไตรมาส</h3>${fin}</div><div class="box"><h3>มุมมอง AI</h3><span class="muted">ยังไม่มี</span></div></div>`;
