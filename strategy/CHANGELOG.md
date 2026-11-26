@@ -327,3 +327,15 @@
   SOL −0.213 | ADA −0.496 | DOGE −0.816 | LINK −0.045 | DOT −0.139 | AVAX −0.040.
 - Reading: XM spreads on altcoins (17–300 bp per trade) are far too wide for this rule; platinum/palladium/gas
   lose clearly; ETH is the only near-miss and fails the recent-period checks. No symbol added. GOLD + BTCUSD stay.
+
+## 2026-11-26 09:15 — results 25 Nov (Thai day) and first swing trades
+- Equity 9010.68 (25 Nov 00:00 Thai) -> 8814.85 (26 Nov 09:10) = −195.83.
+- M5 agent (demo until 16:25, then advisory): 5 trades, all sells, all SL: −4.69, −2.90, −6.57, −6.45, −4.10 = −24.71.
+- Swing H4, first forward trades (both entered 21:00 Thai after US PCE, 7 s after the bar closed):
+  GOLD sell 0.01 @ 3476.24, broker SL 3569.49 hit 03:13 Thai -> −93.25 (−1.0R; gold bounced ~3% overnight).
+  BTCUSD sell 0.03 @ 58034.05, broker SL 60613.75 hit 07:10 Thai -> −77.39 (−1.0R).
+  Shadow AI said "take" on both (60% / 55%); its stated main risk for GOLD was exactly a >2.6% short-covering
+  bounce to the stop. 2 trades = no evidence either way (backtest: ~2/3 of trades lose; streaks of 12–14 occur).
+- Ops: PC entered standby at 00:08 Thai and hibernated 00:24 ("Hibernate from Sleep - Fixed Timeout") despite the
+  awake helper -> bots offline 00:08–09:04 (lid close or manual sleep likely; awake cannot block those). Both
+  exits were broker-side stops, so nothing was missed; no missed entry signals were logged after wake.
