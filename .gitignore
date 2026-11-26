@@ -13,3 +13,4 @@ dashboard.tmp
 status_*.js
 *.pub
 !keys/*.pub
+stocks.html

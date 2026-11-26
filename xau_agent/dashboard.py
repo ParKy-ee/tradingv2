@@ -266,7 +266,7 @@ details summary{cursor:pointer;color:var(--muted)}label{font-size:13px}
 <header><div><h1>XAU Agent Monitor <span class="muted" style="font-weight:400">· demo</span></h1>
 <div class="muted" id="gen"></div></div>
 <div id="procs"></div>
-<label><input type="checkbox" id="auto" checked> รีเฟรชอัตโนมัติทุก 30 วินาที</label></header>
+<a href="stocks.html" style="color:var(--accent)">หุ้นสหรัฐ + มุมมอง AI →</a> <label><input type="checkbox" id="auto" checked> รีเฟรชอัตโนมัติทุก 30 วินาที</label></header>
 <main>
 <section class="flowwrap" id="livem5"><h2><span class="live"></span>ตอนนี้บอท M5 อยู่ขั้นไหน <span class="muted" style="font-weight:400" id="m5age"></span></h2>
 <div class="flow" id="flowm5"></div><div class="now" id="nowm5"></div><details><summary>ลำดับการทำงานล่าสุด (live)</summary><div class="feed" id="feedm5"></div></details></section>

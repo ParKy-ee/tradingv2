@@ -1,6 +1,6 @@
 """Serve the dashboard over the Tailscale network only, so it can be opened from a phone anywhere.
 
-Serves exactly dashboard.html and status_*.js from the project folder — nothing else (no .env, journal, logs).
+Serves exactly dashboard.html, stocks.html and status_*.js from the project folder — nothing else (no .env, journal, logs).
 Binds to this PC's Tailscale IPv4 address (100.x.y.z), so it is unreachable from the LAN or the internet; the
 firewall rule from scripts/runtime_setup.ps1 also limits the port to Tailscale addresses.
 
@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ALLOWED = re.compile(r"^/(dashboard\.html|status_[a-z0-9_]+\.js)$")
+ALLOWED = re.compile(r"^/(dashboard\.html|stocks\.html|status_[a-z0-9_]+\.js)$")
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 
 
